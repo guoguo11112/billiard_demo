@@ -1,0 +1,6 @@
+{
+  "name": "台球颗星与准度模拟器",
+  "description": "专为潘晓婷、亨得利、孔德京冠军课程打造的台球颗星解球与物理准度瞄准双功能模拟器，配备高精度矢量物理动线及系统知识树。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

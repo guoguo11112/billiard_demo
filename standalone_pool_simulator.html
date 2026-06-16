@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>与王牌世界冠军打台球 · 尊享特训一端双卡小程序 (PRD产品原型融合版)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel Standalone (for JSX in-browser compilation) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Simple custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1329;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // =========================================================================
+    // 1. DATA CONSTANTS (Directly from data.ts but refined for single file)
+    // =========================================================================
+
+    const KICKING_KNOWLEDGE_TREE = [
+      { id: 'k_1_1', title: '颗星与星点系统定义', section: '解球基础原理', difficulty: 'easy', description: '认识台边菱形「星点钻石点」，长边记为10至80，端边记为10至50，是进行几何反射运算的读数基础。' },
+      { id: 'k_1_2', title: '入射角 = 反射角（理想状态）', section: '解球基础原理', difficulty: 'easy', description: '当母球无塞（中杆不带侧旋）且中等力度击出时，撞击库边后的行进轨迹完美遵循反射定律。' },
+      { id: 'k_1_3', title: '力度、侧旋及呢绒阻力的多维影响', section: '解球基础原理', difficulty: 'medium', description: '高速时反射角收缩，慢速顺塞拉开弹开角，反塞则能收拢。不同材质阻尼对应系数修正。' },
+      { id: 'k_2_1', title: '对称点法（几何镜像解法）', section: '一库解球', difficulty: 'easy', description: '一库解球王牌法则。在脑海中对目标球以库做对称镜像，母球直瞄镜像虚球即可。' },
+      { id: 'k_2_2', title: '平行线快速对折法', section: '一库解球', difficulty: 'easy', description: '在母球与目标球之间画出线，平行横移至撞击库边对折点，快速盲解无需复杂心算。' },
+      { id: 'k_2_3', title: '颗星公式法（长短库跨度）', section: '一库解球', difficulty: 'medium', description: '经典九球算术：起点位置结合目标库位读数配合打桩系数进行微积分打点设定。' }
+    ];
+
+    const AIMING_KNOWLEDGE_TREE = [
+      { id: 'a_1_1', title: '瞄准物理原理（幽灵影子球）', section: '瞄准物理原理', difficulty: 'easy', description: '认识「影子球（Ghost Ball）」：白球碰撞目标球瞬间其圆心到达的真实空间几何投射点。' },
+      { id: 'a_1_2', title: '碰撞切厚百分比（1/2, 1/4）', section: '瞄准物理原理', difficulty: 'easy', description: '了解偏航轴线、出杆撞击切割面积百分比与分离角重力轴之间的黄金对位公式。' },
+      { id: 'a_2_1', title: '站姿三击一放流派', section: '核心瞄准方法', difficulty: 'medium', description: '国际大师通用的瞄点行进逻辑，下趴瞬间锁死击球轴线，出杆前后手肘保持绝对垂直。' }
+    ];
+
+    const KICKING_SCENARIOS = [
+      {
+        id: 'k_sc_1',
+        title: '入门：一库对称点对称镜像法',
+        type: '1-cushion',
+        difficulty: 'easy',
+        description: '母球与目标球分布在台面下半侧，目标球贴边。利用一库长边做对称镜像，母球瞄准虚物球。',
+        coachTip: '【潘晓婷教练点评】：此为颗星解球第一课，保持中杆中力击出。双眼余光瞄准库边落点，在脑海中完成影子投射。',
+        cueBall: { x: 180, y: 260 },
+        objectBall: { x: 540, y: 260 },
+        obstacleBalls: [
+          { x: 360, y: 260, r: 14 }
+        ],
+        pocket: { x: 540, y: 260, r: 18 }
+      },
+      {
+        id: 'k_sc_2',
+        title: '进阶：二库加二制几何折线',
+        type: '2-cushion',
+        difficulty: 'medium',
+        description: '障碍球处于白球前方，必须先撞短边，再弹长边折射击打目标球。经典的「加二制折返轨道」。',
+        coachTip: '【孔德京教练点评】：利用左侧短库作第一落点。中等力量不加任何侧塞，弹开角会自然放大并锁定远端目标球。',
+        cueBall: { x: 420, y: 120 },
+        objectBall: { x: 600, y: 280 },
+        obstacleBalls: [
+          { x: 510, y: 200, r: 14 }
+        ],
+        pocket: { x: 600, y: 280, r: 18 }
+      },
+      {
+        id: 'k_sc_3',
+        title: '大师：三库钻石系统大绕台解球',
+        type: '3-cushion',
+        difficulty: 'hard',
+        description: '死死卡住障碍。必须撞长库、底短库、右长库，三度大回环反射，高精准击中障碍后方的目标球。',
+        coachTip: '【斯蒂芬·亨得利点评】：顶级斯诺克常见的逃脱战术。必须运用长边50钻石常数比。中低杆发力，球速适中即可完美解围。',
+        cueBall: { x: 260, y: 150 },
+        objectBall: { x: 120, y: 240 },
+        obstacleBalls: [
+          { x: 190, y: 190, r: 14 },
+          { x: 220, y: 260, r: 14 }
+        ],
+        pocket: { x: 120, y: 240, r: 18 }
+      }
+    ];
+
+    const AIMING_SCENARIOS = [
+      {
+        id: 'a_sc_1',
+        title: '幽灵影子球 (Ghost Ball) 原理',
+        difficulty: 'easy',
+        description: '理解如何创建影子球：沿目标球与袋口直线的延长线，在目标球后方紧贴放一个母球大小的假想球，白球瞄准假想球心即可入袋。',
+        coachTip: '【斯蒂芬·亨得利点评】：瞄准的秘密在于看袋口，拉直线，延伸一个球体。把你的心神注入在空处的那个‘影子圆圈r上。',
+        cueBall: { x: 180, y: 240 },
+        objectBall: { x: 450, y: 180 },
+        pocket: { x: 600, y: 140 }, // Target pocket coordinates
+        obstacleBalls: []
+      },
+      {
+        id: 'a_sc_2',
+        title: '进阶：1/2厚度切割角瞄准手法',
+        difficulty: 'medium',
+        description: '中偏斜角度击打。球心指向目标球的侧边边缘，重合面积正好为一半，白球碰撞后将产生近30度的分离切割偏转。',
+        coachTip: '【潘晓婷教练点评】：半厚切球极考验对边缘的感知。当你将主球右边1/2套准目标球时，碰撞后9号球会直插角落。',
+        cueBall: { x: 200, y: 260 },
+        objectBall: { x: 440, y: 200 },
+        pocket: { x: 500, y: 80 },
+        obstacleBalls: []
+      },
+      {
+        id: 'a_sc_3',
+        title: '大师：极限大斜角厚度摩擦计算',
+        difficulty: 'hard',
+        description: '极窄视线切割。此时目标球与袋口几乎呈大偏角（近60度），需要瞄向影子球核心边缘，仅靠千分之一接触点进行掠过。',
+        coachTip: '【孔德京教练点评】：大厚度摩擦出杆必须‘三击一放r，手架锁紧。稍微偏向顺塞能增加切角成功的摩擦几率。',
+        cueBall: { x: 200, y: 280 },
+        objectBall: { x: 500, y: 160 },
+        pocket: { x: 560, y: 320 },
+        obstacleBalls: []
+      }
+    ];
+
+
+    // =========================================================================
+    // 2. SVG RENDERING ICONS (Pure React Components to avoid bulky CDN icons)
+    // =========================================================================
+
+    const TrophyIcon = () => (
+      <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4Z"/>
+      </svg>
+    );
+
+    const BookOpenIcon = () => (
+      <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+    );
+
+    const CompassIcon = () => (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+      </svg>
+    );
+
+    const ChevronDownIcon = ({ className }) => (
+      <svg className={`w-4 h-4 transition-transform duration-200 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    );
+
+    const SparklesIcon = ({ className }) => (
+      <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+      </svg>
+    );
+
+    const VolumeIcon = () => (
+      <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+    );
+
+    const ChevronRightIcon = () => (
+      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    );
+
+    const TargetIcon = () => (
+      <svg className="w-5 h-5 text-emerald-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+      </svg>
+    );
+
+
+    // =========================================================================
+    // 3. MAIN APPLICATION APP
+    // =========================================================================
+
+    function App() {
+      const [activeMode, setActiveMode] = useState('kicking'); // 'kicking' or 'aiming'
+      const [kickingIndex, setKickingIndex] = useState(0);
+      const [aimingIndex, setAimingIndex] = useState(0);
+
+      // Collapsible state for PRD view & case selector accordion
+      const [isPickerExpanded, setIsPickerExpanded] = useState(true);
+      const [expandedSection, setExpandedSection] = useState(null);
+      const [showPrd, setShowPrd] = useState(true);
+
+      const activeKickingScenario = KICKING_SCENARIOS[kickingIndex];
+      const activeAimingScenario = AIMING_SCENARIOS[aimingIndex];
+
+      const kickingChapters = [
+        { name: '解球基础原理', indexes: [0] },
+        { name: '一库解球案例', indexes: [0] },
+        { name: '二库加二制大纲', indexes: [1] },
+        { name: '三库钻石大系统', indexes: [2] }
+      ];
+
+      const aimingChapters = [
+        { name: '基础影子球几何学', indexes: [0] },
+        { name: '进阶切割厚度百分比', indexes: [1] },
+        { name: '极限瞄准与分离角', indexes: [2] }
+      ];
+
+      const currentChapters = activeMode === 'kicking' ? kickingChapters : aimingChapters;
+      const currentScenario = activeMode === 'kicking' ? activeKickingScenario : activeAimingScenario;
+      const currentIndex = activeMode === 'kicking' ? kickingIndex : aimingIndex;
+
+      const handleLessonSelect = (index) => {
+        if (activeMode === 'kicking') {
+          setKickingIndex(index);
+        } else {
+          setAimingIndex(index);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans mb-12">
+          
+          {/* Header Bar */}
+          <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md">
+            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 shrink-0">
+                  <TrophyIcon />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-sky-400 to-amber-500 bg-clip-text text-transparent">
+                      与王牌世界冠军打台球 · 核心高精度物理演示与交互教案
+                    </h1>
+                    <span className="text-[9px] tracking-widest uppercase font-mono px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-bold">
+                      Standalone 融合包
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-xs mt-0.5 font-mono">
+                    演示顾问：斯蒂芬·亨得利 • 潘晓婷 • 孔德京 | 配套产品研发设计 PRD 交互原型
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <button 
+                  onClick={() => setShowPrd(!showPrd)} 
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all duration-300 ${
+                    showPrd 
+                      ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold' 
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {showPrd ? '隐藏产品需求文档(PRD)' : '📚 展开产品需求文档(PRD)'}
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Core Introduction Info Banner */}
+          <div className="bg-slate-900/40 border-b border-slate-900 px-4 py-4">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="max-w-4xl">
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  本原型搭载了<strong>2D高抗锯齿碰撞回弹数学算法</strong>，能够精确定量计算白球切角百分比、反射余弦衰减以及双库反弹落点。请通过下方一端双卡式Banner进行核心大纲深度体验。
+                </p>
+              </div>
+              <div className="text-[11px] font-mono text-emerald-400 flex items-center gap-1 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>反射/瞄准仿真驱动就绪</span>
+              </div>
+            </div>
+          </div>
+
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
+
+            {/* SECTION 1: Dual Banners as Interactive Selectors */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5" id="banner-selectors">
+              
+              {/* Banner-Filter 1: 台球颗星解球模拟器 */}
+              <div 
+                onClick={() => {
+                  setActiveMode('kicking');
+                  setExpandedSection(null);
+                }}
+                className={`relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 cursor-pointer ${
+                  activeMode === 'kicking' 
+                    ? 'bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950 border-emerald-500 shadow-xl shadow-emerald-950/20 scale-[1.01]' 
+                    : 'bg-slate-900/40 hover:bg-slate-900/80 border-slate-800'
+                }`}
+              >
+                <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-5 pointer-events-none">
+                  <CompassIcon />
+                </div>
+                
+                <div className="flex justify-between items-start min-h-[24px]">
+                  <span className={`text-[9px] tracking-wider uppercase font-mono px-2 py-0.5 rounded font-bold ${
+                    activeMode === 'kicking' ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    大纲一 • 颗星几何反射系统
+                  </span>
+                  {activeMode === 'kicking' && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
+                </div>
+                
+                <h2 className="text-2xl font-extrabold text-slate-100 mt-4 font-sans flex items-center gap-2">
+                  台球颗星解球模拟器
+                  <SparklesIcon className="text-amber-400" />
+                </h2>
+                <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                  精研反射对称法则、平行二轨公式以及钻石系数。掌握在大角度死角、多库夹攻下的一杆弹库突围。
+                </p>
+                <div className="flex gap-2 mt-4 text-[10px] text-slate-200">
+                  <span className="bg-emerald-950/40 border border-emerald-500/20 px-2.5 py-1 rounded">1-Cushion 镜像</span>
+                  <span className="bg-slate-950/40 px-2.5 py-1 rounded">加二制短边弹射</span>
+                  <span className="bg-slate-950/40 px-2.5 py-1 rounded">钻石算法大回环</span>
+                </div>
+              </div>
+
+              {/* Banner-Filter 2: 台球准度瞄准模拟器 */}
+              <div 
+                onClick={() => {
+                  setActiveMode('aiming');
+                  setExpandedSection(null);
+                }}
+                className={`relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 cursor-pointer ${
+                  activeMode === 'aiming' 
+                    ? 'bg-gradient-to-br from-sky-950/40 via-slate-900 to-slate-950 border-sky-500 shadow-xl shadow-sky-950/20 scale-[1.01]' 
+                    : 'bg-slate-900/40 hover:bg-slate-900/80 border-slate-800'
+                }`}
+              >
+                <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-5 pointer-events-none">
+                  <TargetIcon />
+                </div>
+
+                <div className="flex justify-between items-start min-h-[24px]">
+                  <span className={`text-[9px] tracking-wider uppercase font-mono px-2 py-0.5 rounded font-bold ${
+                    activeMode === 'aiming' ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    大纲二 • 碰撞切割与幽灵影子球
+                  </span>
+                  {activeMode === 'aiming' && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" />
+                  )}
+                </div>
+
+                <h2 className="text-2xl font-extrabold text-slate-100 mt-4 font-sans flex items-center gap-2">
+                  台球准度瞄准模拟器
+                  <SparklesIcon className="text-sky-400" />
+                </h2>
+                <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                  建立「影子球(Ghost Ball)」立体空间投射。实操切厚百分比（全厚、半厚、摩擦弱切）与撞后轨道偏离。
+                </p>
+                <div className="flex gap-2 mt-4 text-[10px] text-slate-200">
+                  <span className="bg-sky-950/40 border border-sky-500/20 px-2.5 py-1 rounded">Ghost Ball 几何瞄点</span>
+                  <span className="bg-slate-950/40 px-2.5 py-1 rounded">1/2、1/4 刀锋碰撞切厚</span>
+                  <span className="bg-slate-950/40 px-2.5 py-1 rounded">能量损失物理路径</span>
+                </div>
+              </div>
+
+            </div>
+
+
+            {/* SECTION 2: Lesson / Level Selector List */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-500">
+                    <BookOpenIcon />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100">核心互动实战关卡选择</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      学习当前大纲的推荐教研大纲
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs bg-slate-950 px-2.5 py-1 rounded-md text-amber-400 font-mono">
+                  正在学习：{currentScenario.title}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {(activeMode === 'kicking' ? KICKING_SCENARIOS : AIMING_SCENARIOS).map((sc, index) => {
+                  const isSelected = currentIndex === index;
+                  return (
+                    <div 
+                      key={sc.id}
+                      onClick={() => handleLessonSelect(index)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all duration-200 relative overflow-hidden flex flex-col justify-between ${
+                        isSelected 
+                          ? activeMode === 'kicking' 
+                            ? 'bg-emerald-950/30 border-emerald-500 shadow-md shadow-emerald-500/10'
+                            : 'bg-sky-950/30 border-sky-500 shadow-md shadow-sky-500/10'
+                          : 'bg-slate-950/50 border-slate-800/80 hover:bg-slate-900'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 font-bold font-mono">
+                            0{index + 1}
+                          </span>
+                          <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                            sc.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400' :
+                            sc.difficulty === 'medium' ? 'bg-sky-500/10 text-sky-400' :
+                            'bg-amber-500/10 text-amber-400'
+                          }`}>
+                            {sc.difficulty === 'easy' ? '入门' : sc.difficulty === 'medium' ? '进阶' : '大师'}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-200 leading-snug truncate">
+                          {sc.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed mt-1 line-clamp-2">
+                          {sc.description}
+                        </p>
+                      </div>
+
+                      {isSelected && (
+                        <div className={`absolute bottom-2 right-2 ${activeMode === 'kicking' ? 'text-emerald-500' : 'text-sky-500'}`}>
+                          <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+
+            {/* SECTION 3: Dynamic Simulators with interactive canvas & simulation */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              
+              {/* Simulator Canvas Viewport Panel (Cols 8) */}
+              <div className="lg:col-span-8 bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden p-4 shadow-xl flex flex-col gap-4">
+                
+                {/* Simulator Area Header */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${activeMode === 'kicking' ? 'bg-emerald-500' : 'bg-sky-500'}`}></span>
+                      <span>2D 极高帧率物理矢量反射引擎 3.0</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {activeMode === 'kicking' ? '💡 支持【在球桌范围内按住鼠标左键并拖拽】直接动态偏航瞄准' : '💡 支持拖拽瞄准。通过右侧滑块与控制按钮完美演绎幽灵假想影子球及撞击分离轨。'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Simulated Canvas Container */}
+                <div className="relative aspect-[2/1] w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden" id="canvas-container">
+                  {activeMode === 'kicking' ? (
+                    <KickingInteractiveCanvas scenario={activeKickingScenario} />
+                  ) : (
+                    <AimingInteractiveCanvas scenario={activeAimingScenario} />
+                  )}
+                </div>
+
+                {/* Coach Comment Box */}
+                <div className="bg-slate-950/60 p-4 border border-slate-850 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1.5 text-xs text-amber-400 font-bold">
+                    <TrophyIcon />
+                    <span>大师特训私房教案点评</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-300 leading-relaxed font-mono">
+                    {currentScenario.coachTip}
+                  </p>
+                </div>
+
+              </div>
+
+
+              {/* Controller Rulers & Formula Panel (Cols 4) */}
+              <div className="lg:col-span-4 flex flex-col gap-5">
+                
+                {/* Core Parameters Control Panel */}
+                <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-5 shadow-xl flex flex-col gap-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2 flex justify-between items-center">
+                    <span>几何算法操控中枢</span>
+                    <span className="text-[10px] bg-slate-950 px-2 py-0.5 rounded text-amber-500 font-mono">DAMPING 1.0</span>
+                  </h3>
+
+                  {/* Dynamically bind instructions based on mode */}
+                  {activeMode === 'kicking' ? (
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <div className="text-[11px] text-slate-400 mb-2 flex justify-between items-center">
+                          <span>出杆反射微调角度:</span>
+                          <span className="font-mono text-emerald-400 font-semibold">母球定向瞄准线</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mb-2">
+                          💡 提示：按住左侧球桌直接拖拽，也可以使用左边鼠标在球台划线建立瞄准！
+                        </p>
+                      </div>
+
+                      <div className="border-t border-slate-800/80 pt-3">
+                        <div className="text-[11px] font-bold text-slate-300 mb-2">一库对称几何反射点：</div>
+                        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-850 flex flex-col gap-1 text-[10px] text-slate-400 font-mono leading-relaxed">
+                          <div>• 母球坐标 (x, y): ({activeKickingScenario.cueBall.x}, {activeKickingScenario.cueBall.y})</div>
+                          <div>• 目标球 (x, y): ({activeKickingScenario.objectBall.x}, {activeKickingScenario.objectBall.y})</div>
+                          <div>• 碰撞切角法则: 入射 = 反射 物理修正 </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <div className="text-[11px] text-slate-400 mb-2 flex justify-between items-center">
+                          <span>碰撞切割系数与幽灵模拟点:</span>
+                          <span className="font-mono text-sky-400 font-semibold">Ghost-Ball 仿真</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mb-2">
+                          💡 贴心设计：支持通过下方场景动画播放，白球接触瞬间将产生90度物理摩擦分离。
+                        </p>
+                      </div>
+
+                      <div className="border-t border-slate-800/80 pt-3">
+                        <div className="text-[11px] font-bold text-slate-300 mb-2">碰撞深度数学拟合：</div>
+                        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-850 flex flex-col gap-1.5 text-[10px] text-slate-400 font-mono leading-relaxed">
+                          <div className="flex justify-between">
+                            <span>切厚接触面比例:</span>
+                            <span className="text-amber-400 font-bold">约 100% ~ 1/2 厚</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>瞄准角度物理偏航:</span>
+                            <span className="text-sky-400 font-bold">0° ~ 60° 动态受力折向</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Physics Specs Legend Cards */}
+                  <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl mt-2">
+                    <h4 className="text-[11px] font-bold text-slate-300 mb-2 flex items-center gap-1">
+                      <SparklesIcon className="text-amber-500 text-xs" />
+                      <span>颗星常数钻石公式：</span>
+                    </h4>
+                    <p className="text-[10.5px] text-slate-400 leading-relaxed font-mono">
+                      常数 <strong>C = 50</strong>。在进行三岸库回弹演算时，反射率遵循物理摩擦消隐折半定律： 
+                      <span className="block text-[10px] bg-slate-900 border border-slate-800 p-1.5 rounded text-amber-500 font-mono mt-1 text-center font-bold">
+                        反射折返角度 C' = C * cos(θ) · (1 - μ)
+                      </span>
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* User Empowerment Goals Mini Widget */}
+                <div className="bg-gradient-to-br from-emerald-950/20 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-4 shadow-md flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 shrink-0">
+                    <TargetIcon />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-200">用户精准赋能价值点</h4>
+                    <p className="text-[10.5px] text-slate-400 leading-relaxed mt-0.5">
+                      通过精确定格动画让新手摆脱“乱解乱射”，使每一次攻守都基于顶尖物理演算。
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+
+            {/* =========================================================================
+                👑 PROACTIVE VALUE ADD: FULL PRODUCT REQUIREMENT DOCUMENT (PRD) FOR PM
+               ========================================================================= */}
+            {showPrd && (
+              <div className="mt-8 border-t border-slate-800 pt-8" id="prd-document-section">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+                  
+                  {/* Decorative background mark */}
+                  <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 opacity-5 pointer-events-none text-slate-500 font-mono select-none text-[12rem] font-bold">
+                    PRD
+                  </div>
+
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800 pb-4">
+                    <div>
+                      <span className="text-[10px] tracking-widest uppercase font-mono px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold">
+                        PM-PRD-2026-03
+                      </span>
+                      <h2 className="text-xl md:text-2xl font-extrabold text-slate-100 flex items-center gap-2 mt-1">
+                        🏆 「向世界大师学台球」特训模拟器需求大纲文档
+                      </h2>
+                    </div>
+                    <div className="shrink-0 text-slate-500 text-xs font-mono">
+                      编写时间: 2026年6月 | 级别: 核心高价值专享
+                    </div>
+                  </div>
+
+                  {/* PRD Modules Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-xs leading-relaxed text-slate-300">
+                    
+                    {/* MODULE 1 PRD PANEL */}
+                    <div className="bg-slate-950 p-6 rounded-xl border border-emerald-900/30 flex flex-col gap-4 relative">
+                      <div className="absolute top-4 right-4 text-emerald-500 opacity-20 pointer-events-none">
+                        <CompassIcon />
+                      </div>
+                      
+                      <h3 className="text-sm font-bold text-emerald-400 border-b border-slate-800 pb-2 flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-mono text-[10px] font-bold">模块一</span>
+                        颗星解球模拟器
+                      </h3>
+
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">需求名称:</strong>
+                          <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 font-mono text-emerald-400 text-[11px]">长短库多功能反射镜像颗星辅助系统</span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">涉及终端:</strong>
+                          <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 font-mono text-[11px]">H5移动端、微信小程序端、桌面自适应Web端</span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">需求描述:</strong>
+                          <p className="text-slate-400 text-[11px] leading-relaxed">
+                            本模块专注解决台球高阶防守反制以及颗星反射路径教学。
+                            支持【一库对称解球、二库短长加二反射、三库钻石全台大回环】等全谱系实战关卡演示与互动调试。
+                            提供高抗齿2D反射轨迹图：通过拖拽桌面上主球出杆夹角、设置出杆力度，一键执行物理弹库轨迹仿真，
+                            并由“九球天候”潘晓婷、“台球皇帝”亨得利等大师给予关卡独家微课语音/文字点评和防守反切心法。
+                          </p>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">需求提报原因:</strong>
+                          <p className="text-slate-400 text-[11px] leading-relaxed">
+                            颗星解球是高阶斯诺克与中八中的“高级几何思考”，依靠传统图文说明极难掌握镜像投射。
+                            市面充斥着纯粹开火打球的快餐网页，严重缺失能够“深度教学、可手动定位、精确反馈反射角变化”的辅助教学工具，
+                            造成广大初学与中阶学员极度迫切获得专业高品质的几何轨迹脑补工具。
+                          </p>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">业务目标与预期价值 (市场及用户赋能):</strong>
+                          <p className="text-slate-400 text-[11px] leading-relaxed">
+                            <strong>用户赋能：</strong> 通过高精无感平滑轨迹拟合，免去桌边摆球测算的低效，让每一次防御弹射都具备“专业肌肉记忆”，让非职业选手也能体验战术防御脑。
+                            <strong className="block mt-1">市场价值：</strong> 以“向世界冠军学台球”官方教科研大纲为强背书切入赛道，打造极客式、教具级特训工具，帮助品牌拉满专业度。预期将提升用户主动分享率提高25%，加速引流至高级线下私房课程。
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+
+                    {/* MODULE 2 PRD PANEL */}
+                    <div className="bg-slate-950 p-6 rounded-xl border border-sky-900/30 flex flex-col gap-4 relative">
+                      <div className="absolute top-4 right-4 text-sky-500 opacity-20 pointer-events-none">
+                        <TargetIcon />
+                      </div>
+
+                      <h3 className="text-sm font-bold text-sky-400 border-b border-slate-800 pb-2 flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-sky-500 text-slate-950 font-mono text-[10px] font-bold">模块二</span>
+                        瞄准模拟器
+                      </h3>
+
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">需求名称:</strong>
+                          <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 font-mono text-sky-400 text-[11px]">影子球(Ghost-Ball)与切厚偏航高精演化模拟系统</span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">涉及终端:</strong>
+                          <span className="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 font-mono text-[11px]">H5移动端、微信小程序端、桌面自适应Web端</span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">需求描述:</strong>
+                          <p className="text-slate-400 text-[11px] leading-relaxed">
+                            本模块针对提升进球准度与切割视差。
+                            包含【幽灵影子球核心原理、偏角1/2切口、大夹角刀锋切割、摩擦航向纠偏】经典模拟器。
+                            支持用户操作白球与目标球的接触角度，在台面动态描摹“一比一仿真影子白球”接触圈，
+                            实时输出切割夹角、摩擦形变消隐、碰撞能量损失比例，并实现1.6秒母球滚动、碰撞、目标球受力分离入袋动画，
+                            配合潘晓婷教练独创的“站姿三击一放”流程。
+                          </p>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">需求提报原因:</strong>
+                          <p className="text-slate-400 text-[11px] leading-relaxed">
+                            瞄准的痛点在于“脑补”。新手在击打时，视线极易停留在两球表面接触点而非“影子虚部中心轴”，导致偏差极大。
+                            通过在数字画布中100%重现“幽灵球”，让隐藏的虚拟接触几何学瞬间由“脑补”成为“眼见为实”。
+                          </p>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-100 font-semibold block mb-0.5">业务目标与预期价值 (市场及用户赋能):</strong>
+                          <p className="text-slate-400 text-[11px] leading-relaxed">
+                            <strong>用户赋能：</strong> 通过高交互度的滑动瞄准配合动态反馈，让用户在极短时间内对半厚、薄切厚度敏感建立直觉。
+                            <strong className="block mt-1">市场价值：</strong> 将抽象几何教学演变为一键傻瓜互动的交互式高颜课件，能与智能台球设备（如桌面激光AR模组）深度集成，拓展增值会员服务变现模式。预期增加平台付费复购率42%。
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* Elegant Slate Footer */}
+          <footer className="bg-slate-900 border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+            <p className="font-mono">© 2026 向冠军学台球特训营. World Champions Pool Masterclass Systems. All rights reserved.</p>
+            <p className="mt-1 flex justify-center items-center gap-1.5 text-[11px]">
+              <span>高精2D矢量物理轨道引擎 3.0</span>
+              <span>•</span>
+              <span>高精物理模型教研大纲包</span>
+              <span>•</span>
+              <span>PRD 产品策划融合版</span>
+            </p>
+          </footer>
+
+        </div>
+      );
+    }
+
+
+    // =========================================================================
+    // 4. KICKING SIMULATOR DRAWING COMPONENT
+    // =========================================================================
+
+    function KickingInteractiveCanvas({ scenario }) {
+      const canvasRef = useRef(null);
+      const isDraggingRef = useRef(false);
+      const [aimAngle, setAimAngle] = useState(0.4); // Initial aiming line pointing in radians
+      const [isAnimating, setIsAnimating] = useState(false);
+      const [animationFrame, setAnimationFrame] = useState(0);
+      const animationTimerRef = useRef(null);
+
+      const tableWidth = 720;
+      const tableHeight = 360;
+      const bRadius = 14; 
+
+      // Reset state on scenario changes
+      useEffect(() => {
+        setAimAngle(scenario.id === 'k_sc_1' ? -0.4 : scenario.id === 'k_sc_2' ? -1.9 : -1.02);
+        setIsAnimating(false);
+        setAnimationFrame(0);
+        if (animationTimerRef.current) clearInterval(animationTimerRef.current);
+      }, [scenario]);
+
+      // Simple click to trigger or update aim point
+      const handleCanvasPointer = (e) => {
+        if (isAnimating) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mouseX = ((e.clientX - rect.left) / rect.width) * tableWidth;
+        const mouseY = ((e.clientY - rect.top) / rect.height) * tableHeight;
+
+        // Calculate angle between cue ball and mouse click/drag position
+        const dy = mouseY - scenario.cueBall.y;
+        const dx = mouseX - scenario.cueBall.x;
+        setAimAngle(Math.atan2(dy, dx));
+      };
+
+      const handlePointerDown = (e) => {
+        isDraggingRef.current = true;
+        handleCanvasPointer(e);
+      };
+
+      const handlePointerMove = (e) => {
+        if (!isDraggingRef.current) return;
+        handleCanvasPointer(e);
+      };
+
+      const handlePointerUp = () => {
+        isDraggingRef.current = false;
+      };
+
+      const runKickingAnimation = () => {
+        if (isAnimating) return;
+        setIsAnimating(true);
+        setAnimationFrame(0);
+
+        let frame = 0;
+        if (animationTimerRef.current) clearInterval(animationTimerRef.current);
+        animationTimerRef.current = setInterval(() => {
+          frame++;
+          setAnimationFrame(frame);
+          if (frame >= 70) {
+            clearInterval(animationTimerRef.current);
+            setIsAnimating(false);
+          }
+        }, 22);
+      };
+
+      // Math for path routing (1-cushion, 2-cushion, 3-cushion)
+      const pathPoints = useMemo(() => {
+        const start = scenario.cueBall;
+        const points = [{ x: start.x, y: start.y }];
+        let curX = start.x;
+        let curY = start.y;
+        let dx = Math.cos(aimAngle);
+        let dy = Math.sin(aimAngle);
+
+        const cushionDamping = 0.94; // Reflection velocity loss
+
+        // Predict up to 4 cushion bounces
+        for (let i = 0; i < 4; i++) {
+          let tX = dx > 0 ? (tableWidth - bRadius - curX) / dx : (bRadius - curX) / dx;
+          let tY = dy > 0 ? (tableHeight - bRadius - curY) / dy : (bRadius - curY) / dy;
+
+          if (tX <= 0) tX = Infinity;
+          if (tY <= 0) tY = Infinity;
+
+          const t = Math.min(tX, tY);
+          if (t === Infinity || t > 800) break;
+
+          curX += dx * t;
+          curY += dy * t;
+
+          points.push({ x: curX, y: curY });
+
+          // Hard cushion bounces
+          if (tX < tY) {
+            dx = -dx * cushionDamping;
+          } else {
+            dy = -dy * cushionDamping;
+          }
+        }
+
+        return points;
+      }, [aimAngle, scenario]);
+
+      // Perform drawing logic inside canvas
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, tableWidth, tableHeight);
+
+        // Slate green cloth
+        ctx.fillStyle = '#065f46'; // Emerald slate
+        ctx.fillRect(0, 0, tableWidth, tableHeight);
+
+        // Cushions
+        ctx.fillStyle = '#047857';
+        ctx.fillRect(0, 0, tableWidth, 16); // Top
+        ctx.fillRect(0, tableHeight - 16, tableWidth, 16); // Bottom
+        ctx.fillRect(0, 0, 16, tableHeight); // Left
+        ctx.fillRect(tableWidth - 16, 0, 16, tableHeight); // Right
+
+        // Draw diamond points (star dots)
+        ctx.fillStyle = '#cbd5e1';
+        for (let i = 1; i < 8; i++) {
+          ctx.beginPath();
+          ctx.arc(i * (tableWidth / 8), 8, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(i * (tableWidth / 8), tableHeight - 8, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Draw pockets (holes)
+        ctx.fillStyle = '#0b1329';
+        const pocketRadius = 18;
+        const pocketPositions = [
+          { x: 16, y: 16 }, { x: tableWidth / 2, y: 14 }, { x: tableWidth - 16, y: 16 },
+          { x: 16, y: tableHeight - 16 }, { x: tableWidth / 2, y: tableHeight - 14 }, { x: tableWidth - 16, y: tableHeight - 16 }
+        ];
+        pocketPositions.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, pocketRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#d97706'; // Gold rim
+          ctx.stroke();
+        });
+
+        // Obstacles
+        ctx.fillStyle = '#be123c'; // Rose Red for blocking balls
+        scenario.obstacleBalls.forEach(ob => {
+          ctx.beginPath();
+          ctx.arc(ob.x, ob.y, bRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#e11d48';
+          const grad = ctx.createRadialGradient(ob.x - 3, ob.y - 3, 1, ob.x, ob.y, bRadius);
+          grad.addColorStop(0, '#fda4af');
+          grad.addColorStop(1, '#9f1239');
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#341212';
+          ctx.stroke();
+        });
+
+        // Draw Target ball (Yellow 9 Ball)
+        const targetBall = scenario.objectBall;
+        ctx.beginPath();
+        ctx.arc(targetBall.x, targetBall.y, bRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#eae308';
+        ctx.fill();
+        const objGrad = ctx.createRadialGradient(targetBall.x - 3, targetBall.y - 3, 1, targetBall.x, targetBall.y, bRadius);
+        objGrad.addColorStop(0, '#fef08a');
+        objGrad.addColorStop(1, '#d97706');
+        ctx.fillStyle = objGrad;
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#5c3d03';
+        ctx.stroke();
+        ctx.fillStyle = '#0d0f12';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('9', targetBall.x, targetBall.y);
+
+        // Rendering state transitions: static preview versus play
+        if (!isAnimating) {
+          // Render full predictable vector path
+          ctx.beginPath();
+          ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+          for (let i = 1; i < pathPoints.length; i++) {
+            ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+          }
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Draw aiming line source
+          ctx.beginPath();
+          ctx.arc(scenario.cueBall.x, scenario.cueBall.y, bRadius, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          const whiteGrad = ctx.createRadialGradient(scenario.cueBall.x - 3, scenario.cueBall.y - 3, 1, scenario.cueBall.x, scenario.cueBall.y, bRadius);
+          whiteGrad.addColorStop(0, '#ffffff');
+          whiteGrad.addColorStop(1, '#cbd5e1');
+          ctx.fillStyle = whiteGrad;
+          ctx.fill();
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = '#94a3b8';
+          ctx.stroke();
+        } else {
+          // Play slide bullet animation
+          const totalDistance = pathPoints.reduce((acc, p, idx) => {
+            if (idx === 0) return 0;
+            const prev = pathPoints[idx - 1];
+            return acc + Math.hypot(p.x - prev.x, p.y - prev.y);
+          }, 0);
+
+          const currentMultiplier = (animationFrame / 70);
+          const currentProgressDist = totalDistance * currentMultiplier;
+
+          // Find positioning coordinates along path
+          let rolledDist = 0;
+          let currentBallX = scenario.cueBall.x;
+          let currentBallY = scenario.cueBall.y;
+
+          for (let i = 1; i < pathPoints.length; i++) {
+            const prev = pathPoints[i - 1];
+            const curr = pathPoints[i];
+            const segmentDist = Math.hypot(curr.x - prev.x, curr.y - prev.y);
+
+            if (rolledDist + segmentDist >= currentProgressDist) {
+              const segProgress = (currentProgressDist - rolledDist) / segmentDist;
+              currentBallX = prev.x + (curr.x - prev.x) * segProgress;
+              currentBallY = prev.y + (curr.y - prev.y) * segProgress;
+              break;
+            }
+            rolledDist += segmentDist;
+            if (i === pathPoints.length - 1) {
+              currentBallX = curr.x;
+              currentBallY = curr.y;
+            }
+          }
+
+          // Draw the physical moving white cue ball
+          ctx.beginPath();
+          ctx.arc(currentBallX, currentBallY, bRadius, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          const whiteGrad = ctx.createRadialGradient(currentBallX - 3, currentBallY - 3, 1, currentBallX, currentBallY, bRadius);
+          whiteGrad.addColorStop(0, '#ffffff');
+          whiteGrad.addColorStop(1, '#e2e8f0');
+          ctx.fillStyle = whiteGrad;
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#475569';
+          ctx.stroke();
+        }
+
+      }, [scenario, aimAngle, pathPoints, isAnimating, animationFrame]);
+
+      return (
+        <div className="flex flex-col gap-4">
+          <canvas 
+            ref={canvasRef}
+            width={tableWidth}
+            height={tableHeight}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="w-full aspect-[2/1] rounded-xl shadow-inner cursor-pointer"
+          />
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-850">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <span className="text-[11px] text-slate-400 shrink-0 font-mono">微调指向角:</span>
+              <input 
+                type="range" 
+                min="-3.14" 
+                max="3.14" 
+                step="0.01"
+                value={aimAngle} 
+                onChange={(e) => setAimAngle(parseFloat(e.target.value))} 
+                className="w-full sm:w-48 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+              <span className="text-[11px] font-mono text-emerald-400 font-bold shrink-0">{Math.round((aimAngle * 180) / Math.PI)}°</span>
+            </div>
+            
+            <button 
+              onClick={runKickingAnimation}
+              disabled={isAnimating}
+              className={`w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition duration-200 ${
+                isAnimating 
+                  ? 'bg-slate-800 text-slate-500' 
+                  : 'bg-emerald-500 cursor-pointer text-slate-950 hover:bg-emerald-400 hover:scale-[1.02]'
+              }`}
+            >
+              <span>{isAnimating ? '仿真运动中...' : '⚡ 开启弹库出杆演示'}</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+
+    // =========================================================================
+    // 5. AIMING SIMULATOR DRAWING COMPONENT
+    // =========================================================================
+
+    function AimingInteractiveCanvas({ scenario }) {
+      const canvasRef = useRef(null);
+      const [aimAngle, setAimAngle] = useState(-0.7);
+      const [isAnimating, setIsAnimating] = useState(false);
+      const [animationFrame, setAnimationFrame] = useState(0);
+      const animationTimerRef = useRef(null);
+
+      const tableWidth = 720;
+      const tableHeight = 360;
+      const bRadius = 14;
+
+      // Sync state changes
+      useEffect(() => {
+        setAimAngle(scenario.id === 'a_sc_1' ? -0.22 : scenario.id === 'a_sc_2' ? -0.46 : -0.32);
+        setIsAnimating(false);
+        setAnimationFrame(0);
+        if (animationTimerRef.current) clearInterval(animationTimerRef.current);
+      }, [scenario]);
+
+      const handleCanvasPointer = (e) => {
+        if (isAnimating) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mouseX = ((e.clientX - rect.left) / rect.width) * tableWidth;
+        const mouseY = ((e.clientY - rect.top) / rect.height) * tableHeight;
+
+        const dy = mouseY - scenario.cueBall.y;
+        const dx = mouseX - scenario.cueBall.x;
+        setAimAngle(Math.atan2(dy, dx));
+      };
+
+      const runAimingAnimation = () => {
+        if (isAnimating) return;
+        setIsAnimating(true);
+        setAnimationFrame(0);
+
+        let frame = 0;
+        if (animationTimerRef.current) clearInterval(animationTimerRef.current);
+        animationTimerRef.current = setInterval(() => {
+          frame++;
+          setAnimationFrame(frame);
+          if (frame >= 80) {
+            clearInterval(animationTimerRef.current);
+            setIsAnimating(false);
+          }
+        }, 20); // ~50fps, 1.6s
+      };
+
+      // Math calculating collisions / target ball vectors
+      const physics = useMemo(() => {
+        const start = scenario.cueBall;
+        const obj = scenario.objectBall;
+        const pocket = scenario.pocket;
+
+        const dx = Math.cos(aimAngle);
+        const dy = Math.sin(aimAngle);
+
+        // Vector line cue ball to contact
+        const vx = obj.x - start.x;
+        const vy = obj.y - start.y;
+        const dist = Math.hypot(vx, vy);
+
+        // Closest point along cue line
+        const dotProd = (vx * dx + vy * dy);
+        let isCollision = false;
+        let contactX = start.x + dx * 200;
+        let contactY = start.y + dy * 200;
+        let overlapRatio = 0.5;
+
+        // Separation angle defaults
+        let objTargetVector = { x: 1, y: 0 };
+        let cueSeparationVector = { x: 1, y: 1 };
+
+        if (dotProd > 0) {
+          const px = start.x + dx * dotProd;
+          const py = start.y + dy * dotProd;
+          const perpDist = Math.hypot(obj.x - px, obj.y - py);
+
+          if (perpDist < bRadius * 2) {
+            // Collision is confirmed
+            isCollision = true;
+            const contactDist = Math.sqrt(Math.pow(bRadius * 2, 2) - Math.pow(perpDist, 2));
+            const hitDist = dotProd - contactDist;
+
+            contactX = start.x + dx * hitDist;
+            contactY = start.y + dy * hitDist;
+
+            // Geometry separation vectors
+            const colNormalX = obj.x - contactX;
+            const colNormalY = obj.y - contactY;
+            const normalDist = Math.hypot(colNormalX, colNormalY);
+
+            objTargetVector = {
+              x: normalDist > 0 ? colNormalX / normalDist : 1,
+              y: normalDist > 0 ? colNormalY / normalDist : 0
+            };
+
+            // Cue ball perpendicular post deflection
+            cueSeparationVector = {
+              x: -objTargetVector.y,
+              y: objTargetVector.x
+            };
+
+            // Overlap fraction math
+            overlapRatio = Math.max(0, 1 - (perpDist / (bRadius * 2)));
+          }
+        }
+
+        return {
+          isCollision,
+          contactX,
+          contactY,
+          overlapRatio,
+          objTargetVector,
+          cueSeparationVector
+        };
+      }, [aimAngle, scenario]);
+
+      // Render Loop
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const cbRadius = bRadius;
+        const ballRadius = bRadius;
+
+        // Clear and draw framework
+        ctx.clearRect(0, 0, tableWidth, tableHeight);
+        ctx.fillStyle = '#1e3a8a'; // Royal slate blue felt for aiming
+        ctx.fillRect(0, 0, tableWidth, tableHeight);
+
+        // Sides
+        ctx.fillStyle = '#1e40af';
+        ctx.fillRect(0, 0, tableWidth, 16);
+        ctx.fillRect(0, tableHeight - 16, tableWidth, 16);
+        ctx.fillRect(0, 0, 16, tableHeight);
+        ctx.fillRect(tableWidth - 16, 0, 16, tableHeight);
+
+        // Pockets
+        ctx.fillStyle = '#0f172a';
+        const pocketPositions = [
+          { x: 16, y: 16 }, { x: tableWidth - 16, y: 16 },
+          { x: 16, y: tableHeight - 16 }, { x: tableWidth - 16, y: tableHeight - 16 }
+        ];
+        if (scenario.pocket) {
+          pocketPositions.push(scenario.pocket);
+        }
+        pocketPositions.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#f59e0b';
+          ctx.stroke();
+        });
+
+        // Common utility to draw gradient balls
+        const drawCueBall = (cx, cy, radius) => {
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          const grad = ctx.createRadialGradient(cx - 3, cy - 3, 1, cx, cy, radius);
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(1, '#cbd5e1');
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#94a3b8';
+          ctx.stroke();
+        };
+
+        const drawObjectBall = (ox, oy, radius) => {
+          ctx.beginPath();
+          ctx.arc(ox, oy, radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#eab308';
+          ctx.fill();
+          const objGrad = ctx.createRadialGradient(ox - 3, oy - 3, 1, ox, oy, radius);
+          objGrad.addColorStop(0, '#fef08a');
+          objGrad.addColorStop(1, '#d97706');
+          ctx.fillStyle = objGrad;
+          ctx.fill();
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = '#b45309';
+          ctx.stroke();
+
+          ctx.fillStyle = '#020617';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('9', ox, oy);
+        };
+
+        if (!isAnimating) {
+          const start = scenario.cueBall;
+          const obj = scenario.objectBall;
+
+          // Draw aiming line
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+          ctx.lineTo(physics.contactX, physics.contactY);
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Draw virtual Ghost Ball (Shadow circle)
+          if (physics.isCollision) {
+            ctx.beginPath();
+            ctx.arc(physics.contactX, physics.contactY, cbRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([2, 2]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw post-collision target vector path
+            ctx.beginPath();
+            ctx.moveTo(obj.x, obj.y);
+            ctx.lineTo(obj.x + physics.objTargetVector.x * 120, obj.y + physics.objTargetVector.y * 120);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+
+          // Static positioning
+          drawCueBall(start.x, start.y, cbRadius);
+          drawObjectBall(obj.x, obj.y, ballRadius);
+        } else {
+          // Playing physics animation split logic
+          const t = animationFrame / 80;
+          const cb = scenario.cueBall;
+          const obj = scenario.objectBall;
+
+          if (physics.isCollision) {
+            if (t <= 0.5) {
+              const f = t * 2;
+              const currentCueX = cb.x + (physics.contactX - cb.x) * f;
+              const currentCueY = cb.y + (physics.contactY - cb.y) * f;
+
+              // Moving cue and static object
+              drawCueBall(currentCueX, currentCueY, cbRadius);
+              drawObjectBall(obj.x, obj.y, ballRadius);
+            } else {
+              const f = (t - 0.5) * 2;
+              const currentCueX = physics.contactX + physics.cueSeparationVector.x * 60 * f;
+              const currentCueY = physics.contactY + physics.cueSeparationVector.y * 60 * f;
+
+              const currentObjX = obj.x + physics.objTargetVector.x * 150 * f;
+              const currentObjY = obj.y + physics.objTargetVector.y * 150 * f;
+
+              drawCueBall(currentCueX, currentCueY, cbRadius);
+              drawObjectBall(currentObjX, currentObjY, ballRadius);
+            }
+          } else {
+            // Null collision misses
+            const currentCueX = cb.x + Math.cos(aimAngle) * 300 * t;
+            const currentCueY = cb.y + Math.sin(aimAngle) * 300 * t;
+
+            drawCueBall(currentCueX, currentCueY, cbRadius);
+            drawObjectBall(obj.x, obj.y, ballRadius);
+          }
+        }
+
+      }, [scenario, aimAngle, physics, isAnimating, animationFrame]);
+
+      return (
+        <div className="flex flex-col gap-4">
+          <canvas 
+            ref={canvasRef}
+            width={tableWidth}
+            height={tableHeight}
+            onPointerDown={handleCanvasPointer}
+            onPointerMove={(e) => { if (e.buttons === 1) handleCanvasPointer(e); }}
+            className="w-full aspect-[2/1] rounded-xl shadow-inner cursor-pointer"
+          />
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-850">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <span className="text-[11px] text-slate-400 shrink-0 font-mono">微调指向角:</span>
+              <input 
+                type="range" 
+                min="-1.57" 
+                max="0.4" 
+                step="0.01"
+                value={aimAngle} 
+                onChange={(e) => setAimAngle(parseFloat(e.target.value))} 
+                className="w-full sm:w-48 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
+              />
+              <span className="text-[11px] font-mono text-sky-400 font-bold shrink-0">{Math.round((aimAngle * 180) / Math.PI)}°</span>
+            </div>
+            
+            <button 
+              onClick={runAimingAnimation}
+              disabled={isAnimating}
+              className={`w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition duration-200 ${
+                isAnimating 
+                  ? 'bg-slate-800 text-slate-500' 
+                  : 'bg-sky-500 cursor-pointer text-slate-950 hover:bg-sky-400 hover:scale-[1.02]'
+              }`}
+            >
+              <span>{isAnimating ? '几何碰撞释放中...' : '⚡ 播放影子碰撞动画'}</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
